@@ -73,3 +73,11 @@ pub use crate::visitor::Visitor;
 pub mod __macro_refs {
     pub use ctor;
 }
+
+#[macro_export]
+macro_rules! ident_key {
+    ($name:ident) => {{
+        const KEY: Key = Key::new(stringify!(name));
+        KEY
+    }};
+}
