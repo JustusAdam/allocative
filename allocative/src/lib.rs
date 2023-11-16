@@ -77,7 +77,7 @@ pub mod __macro_refs {
 #[macro_export]
 macro_rules! ident_key {
     ($name:ident) => {{
-        const KEY: Key = Key::new(stringify!(name));
+        const KEY: $crate::Key = $crate::Key::new(stringify!(name));
         KEY
     }};
 }

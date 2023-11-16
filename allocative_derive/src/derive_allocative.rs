@@ -54,10 +54,20 @@ fn impl_generics(
 ) -> syn::Result<proc_macro2::TokenStream> {
     if let Some(bound) = &attrs.bound {
         if !bound.is_empty() {
-            return Err(syn::Error::new(
-                attrs.bound.span(),
-                "non-empty bound is not implemented",
-            ));
+            use proc_macro2::{
+                Punct, Spacing, TokenStream as TokenStream2, TokenStream, TokenTree,
+            };
+            let mut verbatim_bound = TokenStream2::default();
+            verbatim_bound.extend(TokenStream2::from(TokenTree::from(Punct::new(
+                '<',
+                Spacing::Alone,
+            ))));
+            verbatim_bound.extend(bound.parse::<TokenStream>()?);
+            verbatim_bound.extend(TokenStream2::from(TokenTree::from(Punct::new(
+                '>',
+                Spacing::Alone,
+            ))));
+            return Ok(verbatim_bound);
         }
     }
 
@@ -319,35 +329,33 @@ fn extract_attrs(attrs: &[Attribute]) -> syn::Result<AllocativeAttrs> {
             continue;
         }
 
-        attr.parse_args_with(|input: ParseStream| {
-            loop {
-                if input.parse::<skip>().is_ok() {
-                    if opts.skip {
-                        return Err(input.error("`skip` was set twice"));
-                    }
-                    opts.skip = true;
-                } else if input.parse::<bound>().is_ok() {
-                    input.parse::<Token![=]>()?;
-                    let bound = input.parse::<LitStr>()?;
-                    if opts.bound.is_some() {
-                        return Err(input.error("`bound` was set twice"));
-                    }
-                    opts.bound = Some(bound.value());
-                } else if input.parse::<visit>().is_ok() {
-                    input.parse::<Token![=]>()?;
-                    let visit = input.parse::<Path>()?;
-                    if opts.visit.is_some() {
-                        return Err(input.error("`visit` was set twice"));
-                    }
-                    opts.visit = Some(visit);
+        attr.parse_args_with(|input: ParseStream| loop {
+            if input.parse::<skip>().is_ok() {
+                if opts.skip {
+                    return Err(input.error("`skip` was set twice"));
                 }
-
-                if input.is_empty() {
-                    return Ok(());
+                opts.skip = true;
+            } else if input.parse::<bound>().is_ok() {
+                input.parse::<Token![=]>()?;
+                let bound = input.parse::<LitStr>()?;
+                if opts.bound.is_some() {
+                    return Err(input.error("`bound` was set twice"));
                 }
-
-                input.parse::<Token![,]>()?;
+                opts.bound = Some(bound.value());
+            } else if input.parse::<visit>().is_ok() {
+                input.parse::<Token![=]>()?;
+                let visit = input.parse::<Path>()?;
+                if opts.visit.is_some() {
+                    return Err(input.error("`visit` was set twice"));
+                }
+                opts.visit = Some(visit);
             }
+
+            if input.is_empty() {
+                return Ok(());
+            }
+
+            input.parse::<Token![,]>()?;
         })?;
     }
 
